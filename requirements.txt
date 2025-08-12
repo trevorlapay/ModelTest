@@ -6,6 +6,9 @@
 # remote models via the OpenAI API you should also install the
 # `openai` client, but that is optional and deliberately omitted
 # here because users may supply their own backend.
-
 requests>=2.0
 matplotlib>=3.0
+
+# Optional dependencies for advanced functionality. Install these to enable PyRIT integration and Garak probes.
+pyrit>=0.2.0
+garak>=0.6.0
