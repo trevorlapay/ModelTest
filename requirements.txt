@@ -1,0 +1,11 @@
+# Core dependencies for ModelTest
+#
+# These packages are required for the basic operation of the framework.
+# Requests is used for HTTP calls to local models. Matplotlib is used
+# for generating charts in the HTML report. If you plan to call
+# remote models via the OpenAI API you should also install the
+# `openai` client, but that is optional and deliberately omitted
+# here because users may supply their own backend.
+
+requests>=2.0
+matplotlib>=3.0
