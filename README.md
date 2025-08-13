@@ -37,7 +37,8 @@ as self‑contained HTML files with charts and transcripts.
 
 ## Installation
 
-Install per requirements.txt. 
+Install per requirements.txt. The big one is PyRIT. Thank you, uncle Microsoft,
+for making this open source.
 
 If you wish to evaluate a local model instead of using a remote API,
 invoke the CLI with the `--local` flag and supply the `--target-model`
