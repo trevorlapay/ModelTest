@@ -81,7 +81,7 @@ def main() -> None:
     parser.add_argument(
         "--target-model",
         type=str,
-        default="gpt-3.5-turbo",
+        default="gpt-4o-mini",
         help="Identifier of the target model to test.",
     )
     parser.add_argument(
