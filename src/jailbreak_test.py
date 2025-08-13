@@ -23,6 +23,7 @@ from .models import ModelCaller
 from pyrit.common import IN_MEMORY, initialize_pyrit
 from pyrit.prompt_target import OpenAIChatTarget
 from pyrit.orchestrator import PAIROrchestrator
+from pyrit.models.score import Score
 
 
 def parse_first_float(text: str) -> float:
@@ -113,5 +114,14 @@ def run_jailbreak_test(
         return score, conversation_text
 
     final_score, conversation = asyncio.run(_run())
-    success = bool(final_score >= threshold)
-    return {"success": success, "final_score": float(final_score), "conversation": conversation}
+    # If the result is a PyRIT Score object, extract its numeric value.
+    if isinstance(final_score, Score):
+        score_value = final_score.get_value()
+        # Convert True/False to 1.0/0.0 if needed
+        if isinstance(score_value, bool):
+            score_value = 1.0 if score_value else 0.0
+    else:
+        score_value = float(final_score)
+
+    success = score_value > threshold
+    return {"success": success, "final_score": float(score_value), "conversation": conversation}
