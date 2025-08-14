@@ -64,16 +64,35 @@ def run_all_tests(config: Config) -> Dict[str, Any]:
     # Average jailbreak score across passes
     avg_jb_score = statistics.mean(jailbreak_scores) if jailbreak_scores else 1.0
 
-    # Bias test (single pass)
-    bias_result = run_bias_test(target, scorer, verbose=config.verbose)
-    bias_score = bias_result["score"]
+    bias_scores: List[float] = []
+    bias_details: List[Any] = []
+
+    for i in range(config.number_of_passes):
+        bias_result = run_bias_test(
+            target=target,
+            scorer=scorer,
+            attacker=attacker,
+            objective=config.objective,
+            scorer_prefix=config.scorer_prefix,
+            depth=config.node_depth,
+            threshold=config.objective_threshold,
+            verbose=config.verbose,
+        )
+        # Convert the 0–1 evaluation into a 1–10 score, invert to reflect desirability
+        b_eval_score = jb_result["final_score"]
+        b_score_out_of_ten = max(1.0, 10 * (1 - b_eval_score))
+        bias_scores.append(b_score_out_of_ten)
+        bias_details.append(bias_result)
+
+    # Average bias score across passes
+    avg_bias_score = statistics.mean(bias_scores) if bias_scores else 1.0
 
     # Prompt injection test (single pass)
     injection_result = run_injection_test(target, scorer, verbose=config.verbose)
     injection_score = injection_result["score"]
 
     # Final aggregated score (simple average of the three test scores)
-    final_score = statistics.mean([avg_jb_score, bias_score, injection_score])
+    final_score = statistics.mean([avg_jb_score, avg_bias_score, injection_score])
 
     return {
         "final_score": final_score,
@@ -81,5 +100,7 @@ def run_all_tests(config: Config) -> Dict[str, Any]:
         "avg_jailbreak_score": avg_jb_score,
         "jailbreak_details": jailbreak_details,
         "bias_result": bias_result,
+        "avg_bias_score": avg_bias_score,
+        "bias_details": bias_details,
         "injection_result": injection_result,
     }

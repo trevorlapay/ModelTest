@@ -72,10 +72,35 @@ def _render_jailbreak_pass(jb: Dict[str, Any]) -> str:
     parts.append("<div class='transcript'><em>No transcript available.</em></div><br>")
     return "".join(parts)
 
+def _render_bias_pass(b: Dict[str, Any]) -> str:
+    parts: List[str] = []
+    # Header
+    success = bool(b.get("success", False))
+    fs = _coerce_float(b.get("final_score", 0.0))
+    parts.append(f"<h4>Pass (Success: {success}, Final score: {fs:.3f})</h4>")
+
+    # Prefer structured transcript if present & non-empty
+    structured = b.get("transcript")
+    if isinstance(structured, list) and structured:
+        for e in structured:
+            if isinstance(e, dict):
+                parts.append(_render_structured_entry(e))
+        return "".join(parts)
+
+    # Fallback: any raw text field
+    raw = b.get("transcript_text") or b.get("conversation") or b.get("conversation_text")
+    if isinstance(raw, str) and raw.strip():
+        parts.append(f"<div class='transcript'>{html.escape(raw)}</div><br>")
+        return "".join(parts)
+
+    # Nothing to show
+    parts.append("<div class='transcript'><em>No transcript available.</em></div><br>")
+    return "".join(parts)
+
 
 def generate_report(results: Dict[str, Any], output_path: str) -> None:
     jailbreak_scores = results.get("jailbreak_scores", [])
-    bias_score = _coerce_float(results.get("bias_result", {}).get("score", 0))
+    bias_scores = results.get("bias_scores", [])
     injection_score = _coerce_float(results.get("injection_result", {}).get("score", 0))
     final_score = _coerce_float(results.get("final_score", 0))
 
@@ -83,7 +108,7 @@ def generate_report(results: Dict[str, Any], output_path: str) -> None:
     test_names = ["Jailbreak", "Bias", "Injection"]
     test_values = [
         _coerce_float(results.get("avg_jailbreak_score", 0)),
-        bias_score,
+        _coerce_float(results.get("avg_bias_score", 0)),
         injection_score,
     ]
     fig, ax = plt.subplots(figsize=(6, 4))
@@ -129,6 +154,7 @@ def generate_report(results: Dict[str, Any], output_path: str) -> None:
 
     # Detailed scores card (robust to missing fields)
     mean_eval_jb = 0.0
+    mean_eval_b = 0.0
     if results.get("jailbreak_details"):
         # try to pull a 0-1 eval if stored; otherwise fallback to 1 - (score/10)
         last = results["jailbreak_details"][-1]
@@ -139,7 +165,6 @@ def generate_report(results: Dict[str, Any], output_path: str) -> None:
         else:
             mean_eval_jb = _coerce_float(raw_eval, 0.0)
 
-    bias_mean = _coerce_float(results.get("bias_result", {}).get("mean_evaluation", 0))
     inj_mean = _coerce_float(results.get("injection_result", {}).get("mean_evaluation", 0))
 
     html_parts.append("<div class='card'><div class='header'>Detailed Scores</div>")
@@ -150,7 +175,9 @@ def generate_report(results: Dict[str, Any], output_path: str) -> None:
         f"<td>{mean_eval_jb:.3f}</td></tr>"
     )
     html_parts.append(
-        f"<tr><td>Bias</td><td>{bias_score:.2f}</td><td>{bias_mean:.3f}</td></tr>"
+        f"<tr><td>Jailbreak (average of {len(bias_scores)} runs)</td>"
+        f"<td>{_coerce_float(results.get('avg_bias_score',0)):.2f}</td>"
+        f"<td>{mean_eval_b:.3f}</td></tr>"
     )
     html_parts.append(
         f"<tr><td>Injection</td><td>{injection_score:.2f}</td><td>{inj_mean:.3f}</td></tr>"
@@ -163,19 +190,13 @@ def generate_report(results: Dict[str, Any], output_path: str) -> None:
         for jb in results["jailbreak_details"]:
             html_parts.append(_render_jailbreak_pass(jb))
         html_parts.append("</div>")
-
-    # Bias details
-    if results.get("bias_result"):
-        html_parts.append("<div class='card'><div class='header'>Bias Test Details</div>")
-        for detail in results["bias_result"].get("details", []):
-            html_parts.append("<div class='transcript'>")
-            html_parts.append(f"<strong>Prompt:</strong> {html.escape(str(detail.get('prompt','')))}\n")
-            html_parts.append(f"<strong>Target response:</strong> {html.escape(str(detail.get('target_response','')))}\n")
-            evr = html.escape(str(detail.get('evaluation_response','')))
-            sc = _coerce_float(detail.get('score'), None)
-            html_parts.append(f"<strong>Evaluation response:</strong> {evr}{f' (score={sc:.3f})' if sc is not None else ''}\n")
-            html_parts.append("</div><br>")
+        
+    if results.get("bias_details"):
+        html_parts.append("<div class='card'><div class='header'>Bias Transcripts</div>")
+        for b in results["bias_details"]:
+            html_parts.append(_render_bias_pass(b))
         html_parts.append("</div>")
+
 
     # Injection details
     if results.get("injection_result"):
